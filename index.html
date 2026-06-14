@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SAP OData Performance Benchmark Studio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              500: "#0f766e",
+              600: "#0d665f",
+              700: "#0b564f"
+            },
+            night: "#071018",
+            success: "#10b981",
+            danger: "#ef4444"
+          }
+        }
+      }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .glass { backdrop-filter: blur(8px); }
+    .scroll-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+    .scroll-thin::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.35); border-radius: 999px; }
+  </style>
+</head>
+<body class="h-full bg-slate-100 text-slate-800 dark:bg-night dark:text-slate-100">
+  <div class="min-h-full flex flex-col">
+    <header class="sticky top-0 z-20 border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-950/80 backdrop-blur">
+      <div class="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 class="text-xl font-black tracking-tight">SAP OData Performance Benchmark Studio</h1>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Regenerated directly in root index for GitHub Pages</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-900">
+            <input id="sandboxMode" type="checkbox" class="accent-brand-600" checked />
+            Sandbox Simulation
+          </label>
+          <button id="themeToggle" class="px-3 py-2 rounded-xl text-xs font-bold bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900">Toggle Theme</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-[1600px] mx-auto p-4 sm:p-6 w-full space-y-5 flex-1">
+      <div id="diagBanner" class="hidden rounded-xl border border-red-300 bg-red-50 text-red-900 p-3 text-sm font-semibold"></div>
+
+      <section class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        <aside class="xl:col-span-5 space-y-4">
+          <div class="glass rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 p-4 space-y-3">
+            <h2 class="text-sm font-black uppercase tracking-wide">Connection</h2>
+            <div>
+              <label class="block text-xs font-bold mb-1">Endpoint URL</label>
+              <input id="endpoint" type="url" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm" value="https://example.sap.mock/sap/opu/odata4/API_SALES_ORDER_SRV/A_SalesOrder" />
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold mb-1">Auth Type</label>
+                <select id="authType" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm">
+                  <option value="none">None</option>
+                  <option value="basic">Basic</option>
+                  <option value="bearer">Bearer</option>
+                  <option value="apikey">API Key</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold mb-1">Method</label>
+                <select id="method" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm font-bold">
+                  <option>GET</option>
+                  <option>POST</option>
+                  <option>PUT</option>
+                  <option>PATCH</option>
+                  <option>DELETE</option>
+                </select>
+              </div>
+            </div>
+            <div id="basicAuthFields" class="hidden grid grid-cols-2 gap-2">
+              <input id="basicUser" placeholder="username" class="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1.5 text-xs" />
+              <input id="basicPass" type="password" placeholder="password" class="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1.5 text-xs" />
+            </div>
+            <input id="bearerToken" placeholder="Bearer token" class="hidden w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1.5 text-xs" />
+            <div id="apikeyFields" class="hidden grid grid-cols-2 gap-2">
+              <input id="apiKeyHeader" placeholder="Header" value="APIKey" class="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1.5 text-xs" />
+              <input id="apiKeyValue" placeholder="Value" class="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1.5 text-xs" />
+            </div>
+          </div>
+
+          <div class="glass rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 p-4 space-y-3">
+            <h2 class="text-sm font-black uppercase tracking-wide">Load Config</h2>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold mb-1">Iterations</label>
+                <input id="iterations" type="number" min="1" max="300" value="12" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm text-center font-bold" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold mb-1">Delay ms</label>
+                <input id="delayMs" type="number" min="0" step="50" value="100" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm text-center font-bold" />
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold mb-1">JSON Body</label>
+              <textarea id="body" rows="5" placeholder='{"SalesOrderType":"OR"}' class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-xs font-mono"></textarea>
+            </div>
+            <div class="flex gap-2">
+              <button id="runBtn" type="button" class="flex-1 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 text-white px-4 py-3 font-black">Run Performance Test</button>
+              <button id="cancelBtn" type="button" class="rounded-xl bg-red-500 text-white px-4 py-3 font-black disabled:opacity-40" disabled>Abort</button>
+            </div>
+            <div id="runStatus" class="text-xs font-mono text-brand-700 dark:text-emerald-400">Ready.</div>
+          </div>
+        </aside>
+
+        <section class="xl:col-span-7 space-y-4">
+          <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3"><p class="text-[10px] uppercase text-slate-400">Total</p><p id="sumTotal" class="text-2xl font-black">0</p></div>
+            <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3"><p class="text-[10px] uppercase text-slate-400">Success</p><p id="sumSuccess" class="text-2xl font-black text-success">0</p></div>
+            <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3"><p class="text-[10px] uppercase text-slate-400">Failed</p><p id="sumFailed" class="text-2xl font-black text-danger">0</p></div>
+            <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3"><p class="text-[10px] uppercase text-slate-400">Avg/Min/Max</p><p id="sumLatency" class="text-xs font-mono font-bold">0 / 0 / 0</p></div>
+            <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3"><p class="text-[10px] uppercase text-slate-400">Error %</p><p id="sumErrorRate" class="text-2xl font-black text-brand-600">0%</p></div>
+          </div>
+
+          <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+            <h3 class="text-xs uppercase tracking-wide font-black mb-2">Latency Trend</h3>
+            <div class="h-[280px]"><canvas id="latencyChart"></canvas></div>
+          </div>
+
+          <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3">
+            <h3 class="text-xs uppercase tracking-wide font-black">Detailed Logs</h3>
+            <div class="max-h-[300px] overflow-auto scroll-thin border border-slate-200 dark:border-slate-800 rounded-xl">
+              <table class="w-full text-xs">
+                <thead class="sticky top-0 bg-slate-100 dark:bg-slate-800">
+                  <tr>
+                    <th class="text-left px-3 py-2">#</th>
+                    <th class="text-left px-3 py-2">Time</th>
+                    <th class="text-left px-3 py-2">Method</th>
+                    <th class="text-left px-3 py-2">Status</th>
+                    <th class="text-right px-3 py-2">Latency</th>
+                  </tr>
+                </thead>
+                <tbody id="logBody">
+                  <tr><td colspan="5" class="px-3 py-8 text-center text-slate-400">No runs yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="border-t border-slate-200 dark:border-slate-800 pt-3">
+              <div class="flex items-center justify-between mb-2">
+                <p class="text-xs font-black uppercase tracking-wide">API Result Preview</p>
+                <p id="previewMeta" class="text-[10px] text-slate-500 font-mono">No round selected</p>
+              </div>
+              <pre id="previewPayload" class="h-[150px] overflow-auto scroll-thin bg-slate-950 text-emerald-400 rounded-xl p-3 text-[11px] font-mono">Waiting for response payload...</pre>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <section class="max-w-[1600px] mx-auto px-4 sm:px-6 pb-5 w-full">
+      <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 p-3">
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-xs font-black uppercase tracking-wider">Diagnostics Console</p>
+          <button id="clearLogsBtn" class="text-[10px] px-2 py-1 rounded border border-slate-300 dark:border-slate-700">Clear</button>
+        </div>
+        <div id="inspectorConsole" class="h-[120px] overflow-auto scroll-thin bg-slate-900 text-slate-200 rounded-xl p-3 text-[11px] font-mono"></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const state = { results: [], running: false, cancelRequested: false, abortController: null, chart: null };
+
+    const el = {
+      sandboxMode: document.getElementById("sandboxMode"),
+      themeToggle: document.getElementById("themeToggle"),
+      endpoint: document.getElementById("endpoint"),
+      authType: document.getElementById("authType"),
+      method: document.getElementById("method"),
+      basicAuthFields: document.getElementById("basicAuthFields"),
+      basicUser: document.getElementById("basicUser"),
+      basicPass: document.getElementById("basicPass"),
+      bearerToken: document.getElementById("bearerToken"),
+      apikeyFields: document.getElementById("apikeyFields"),
+      apiKeyHeader: document.getElementById("apiKeyHeader"),
+      apiKeyValue: document.getElementById("apiKeyValue"),
+      iterations: document.getElementById("iterations"),
+      delayMs: document.getElementById("delayMs"),
+      body: document.getElementById("body"),
+      runBtn: document.getElementById("runBtn"),
+      cancelBtn: document.getElementById("cancelBtn"),
+      runStatus: document.getElementById("runStatus"),
+      logBody: document.getElementById("logBody"),
+      previewMeta: document.getElementById("previewMeta"),
+      previewPayload: document.getElementById("previewPayload"),
+      sumTotal: document.getElementById("sumTotal"),
+      sumSuccess: document.getElementById("sumSuccess"),
+      sumFailed: document.getElementById("sumFailed"),
+      sumLatency: document.getElementById("sumLatency"),
+      sumErrorRate: document.getElementById("sumErrorRate"),
+      inspectorConsole: document.getElementById("inspectorConsole"),
+      clearLogsBtn: document.getElementById("clearLogsBtn"),
+      diagBanner: document.getElementById("diagBanner")
+    };
+
+    function diagLog(msg, isError = false) {
+      const line = document.createElement("p");
+      line.className = isError ? "text-red-400" : "text-slate-300";
+      line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      el.inspectorConsole.appendChild(line);
+      el.inspectorConsole.scrollTop = el.inspectorConsole.scrollHeight;
+    }
+
+    window.onerror = function (message, source, lineno, colno) {
+      const txt = `Exception: ${message} @ ${lineno || 0}:${colno || 0}`;
+      diagLog(txt, true);
+      el.diagBanner.classList.remove("hidden");
+      el.diagBanner.textContent = txt;
+      return false;
+    };
+
+    window.onunhandledrejection = function (event) {
+      diagLog(`Unhandled Promise: ${event.reason}`, true);
+    };
+
+    function setStatus(msg, isError = false) {
+      el.runStatus.textContent = msg;
+      el.runStatus.className = isError ? "text-xs font-mono text-red-500" : "text-xs font-mono text-brand-700 dark:text-emerald-400";
+      diagLog(`Status: ${msg}`, isError);
+    }
+
+    function wireAuthFields() {
+      const t = el.authType.value;
+      el.basicAuthFields.classList.toggle("hidden", t !== "basic");
+      el.bearerToken.classList.toggle("hidden", t !== "bearer");
+      el.apikeyFields.classList.toggle("hidden", t !== "apikey");
+    }
+
+    function authHeaders() {
+      const out = {};
+      if (el.authType.value === "basic" && el.basicUser.value) {
+        out.Authorization = "Basic " + btoa(`${el.basicUser.value}:${el.basicPass.value}`);
+      }
+      if (el.authType.value === "bearer" && el.bearerToken.value.trim()) {
+        out.Authorization = "Bearer " + el.bearerToken.value.trim();
+      }
+      if (el.authType.value === "apikey" && el.apiKeyHeader.value.trim()) {
+        out[el.apiKeyHeader.value.trim()] = el.apiKeyValue.value.trim();
+      }
+      return out;
+    }
+
+    function initChart() {
+      if (typeof Chart === "undefined") {
+        diagLog("Chart.js unavailable. Graph disabled.", true);
+        return;
+      }
+      state.chart = new Chart(document.getElementById("latencyChart"), {
+        type: "line",
+        data: { labels: [], datasets: [{ label: "Latency (ms)", data: [], borderColor: "#0f766e", tension: 0.2, pointBackgroundColor: [] }] },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    function resetRunData() {
+      state.results = [];
+      if (state.chart) {
+        state.chart.data.labels = [];
+        state.chart.data.datasets[0].data = [];
+        state.chart.data.datasets[0].pointBackgroundColor = [];
+        state.chart.update();
+      }
+      el.logBody.innerHTML = '<tr><td colspan="5" class="px-3 py-8 text-center text-slate-400">No runs yet.</td></tr>';
+      el.previewMeta.textContent = "No round selected";
+      el.previewPayload.textContent = "Waiting for response payload...";
+      updateSummary();
+    }
+
+    function updateSummary() {
+      const total = state.results.length;
+      const success = state.results.filter(r => r.ok).length;
+      const failed = total - success;
+      const lat = state.results.map(r => r.latency);
+      const avg = total ? lat.reduce((a, b) => a + b, 0) / total : 0;
+      const min = total ? Math.min(...lat) : 0;
+      const max = total ? Math.max(...lat) : 0;
+      const err = total ? (failed / total) * 100 : 0;
+      el.sumTotal.textContent = String(total);
+      el.sumSuccess.textContent = String(success);
+      el.sumFailed.textContent = String(failed);
+      el.sumLatency.textContent = `${avg.toFixed(1)} / ${min.toFixed(0)} / ${max.toFixed(0)} ms`;
+      el.sumErrorRate.textContent = `${err.toFixed(1)}%`;
+    }
+
+    function updateChart(result) {
+      if (!state.chart) return;
+      state.chart.data.labels.push(`#${result.iteration}`);
+      state.chart.data.datasets[0].data.push(Number(result.latency.toFixed(1)));
+      state.chart.data.datasets[0].pointBackgroundColor.push(result.ok ? "#10b981" : "#ef4444");
+      state.chart.update();
+    }
+
+    function updateInlinePreview(result) {
+      el.previewMeta.textContent = `Round #${result.iteration} | Status ${result.status} | ${result.latency.toFixed(1)} ms`;
+      try {
+        el.previewPayload.textContent = JSON.stringify(JSON.parse(result.response), null, 2);
+      } catch {
+        el.previewPayload.textContent = result.response || "(empty response)";
+      }
+    }
+
+    function appendLogRow(result) {
+      if (result.iteration === 1) el.logBody.innerHTML = "";
+      const tr = document.createElement("tr");
+      const statusClass = result.ok ? "text-emerald-600" : "text-red-500";
+      tr.className = "border-t border-slate-200 dark:border-slate-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30";
+      tr.innerHTML = `
+        <td class="px-3 py-2">#${result.iteration}</td>
+        <td class="px-3 py-2">${new Date(result.timestamp).toLocaleTimeString()}</td>
+        <td class="px-3 py-2 font-bold">${result.method}</td>
+        <td class="px-3 py-2 ${statusClass}">${result.status}</td>
+        <td class="px-3 py-2 text-right font-bold">${result.latency.toFixed(1)} ms</td>
+      `;
+      tr.addEventListener("click", () => updateInlinePreview(result));
+      el.logBody.appendChild(tr);
+    }
+
+    function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+    function validateBody(method, text) {
+      if (!["POST", "PUT", "PATCH", "DELETE"].includes(method)) return { ok: true, body: "" };
+      const trimmed = (text || "").trim();
+      if (!trimmed) return { ok: true, body: "" };
+      try { return { ok: true, body: JSON.stringify(JSON.parse(trimmed)) }; }
+      catch { return { ok: false, body: "", msg: "Invalid JSON payload." }; }
+    }
+
+    async function runDemoIteration(iteration, method) {
+      const timestamp = new Date().toISOString();
+      const latency = 80 + Math.random() * 260 + (Math.random() < 0.14 ? Math.random() * 700 : 0);
+      await sleep(Math.min(latency, 260));
+      const fail = Math.random() < 0.12;
+      const status = fail ? [400, 401, 403, 429, 500][Math.floor(Math.random() * 5)] : [200, 201, 204][Math.floor(Math.random() * 3)];
+      const response = fail
+        ? JSON.stringify({ error: { code: "SIMULATED_ERR", message: "Simulated cloud throttle or auth issue" } }, null, 2)
+        : JSON.stringify({ d: { result: { id: `SIM_${iteration}`, message: "Simulated success", latency: latency.toFixed(1) } } }, null, 2);
+      return { iteration, timestamp, method, status, ok: !fail, latency, response };
+    }
+
+    async function runLiveIteration(iteration, url, method, body) {
+      const timestamp = new Date().toISOString();
+      const started = performance.now();
+      try {
+        const res = await fetch(url, {
+          method,
+          headers: { Accept: "application/json", "Content-Type": "application/json", ...authHeaders() },
+          credentials: "include",
+          cache: "no-store",
+          mode: "cors",
+          body: ["POST", "PUT", "PATCH", "DELETE"].includes(method) && body ? body : undefined,
+          signal: state.abortController.signal
+        });
+        const text = await res.text();
+        return { iteration, timestamp, method, status: res.status, ok: res.ok, latency: performance.now() - started, response: text };
+      } catch (e) {
+        return { iteration, timestamp, method, status: "FAIL", ok: false, latency: performance.now() - started, response: String(e.message || "Network/CORS error") };
+      }
+    }
+
+    async function runPerformanceTest() {
+      if (state.running) {
+        diagLog("Run ignored. Existing run in progress.");
+        return;
+      }
+
+      const method = el.method.value.toUpperCase();
+      const endpoint = el.endpoint.value.trim();
+      const loops = Math.max(1, Number(el.iterations.value || 1));
+      const delayMs = Math.max(0, Number(el.delayMs.value || 0));
+      const sandbox = el.sandboxMode.checked;
+
+      if (!sandbox && !endpoint) {
+        setStatus("Endpoint is required when sandbox is off.", true);
+        return;
+      }
+
+      const bodyCheck = validateBody(method, el.body.value);
+      if (!bodyCheck.ok) {
+        setStatus(bodyCheck.msg, true);
+        return;
+      }
+
+      state.running = true;
+      state.cancelRequested = false;
+      state.abortController = new AbortController();
+      el.runBtn.disabled = true;
+      el.cancelBtn.disabled = false;
+      resetRunData();
+
+      setStatus(`Running ${loops} iterations...`);
+
+      try {
+        for (let i = 1; i <= loops; i++) {
+          if (state.cancelRequested) break;
+          let result;
+          if (sandbox) {
+            result = await runDemoIteration(i, method);
+          } else {
+            result = await runLiveIteration(i, endpoint, method, bodyCheck.body);
+          }
+          state.results.push(result);
+          appendLogRow(result);
+          updateInlinePreview(result);
+          updateSummary();
+          updateChart(result);
+
+          if (i < loops && delayMs > 0 && !state.cancelRequested) {
+            await sleep(delayMs);
+          }
+        }
+
+        setStatus(state.cancelRequested ? "Run cancelled." : "Run completed.");
+      } catch (e) {
+        setStatus(`Run failed: ${e.message}`, true);
+      } finally {
+        state.running = false;
+        state.cancelRequested = false;
+        el.runBtn.disabled = false;
+        el.cancelBtn.disabled = true;
+      }
+    }
+
+    function cancelRun() {
+      if (!state.running) return;
+      state.cancelRequested = true;
+      state.abortController?.abort();
+      setStatus("Cancelling current run...");
+    }
+
+    function initTheme() {
+      const saved = localStorage.getItem("sap-bench-theme");
+      const dark = saved ? saved === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+      document.documentElement.classList.toggle("dark", dark);
+    }
+
+    function bindEvents() {
+      el.authType.addEventListener("change", wireAuthFields);
+      el.runBtn.addEventListener("click", runPerformanceTest);
+      el.cancelBtn.addEventListener("click", cancelRun);
+      el.clearLogsBtn.addEventListener("click", () => { el.inspectorConsole.innerHTML = ""; diagLog("Diagnostics cleared."); });
+      el.themeToggle.addEventListener("click", () => {
+        const dark = !document.documentElement.classList.contains("dark");
+        document.documentElement.classList.toggle("dark", dark);
+        localStorage.setItem("sap-bench-theme", dark ? "dark" : "light");
+      });
+    }
+
+    function init() {
+      initTheme();
+      wireAuthFields();
+      initChart();
+      bindEvents();
+      updateSummary();
+      diagLog("Benchmark studio initialized in root index.");
+      setStatus("Ready.");
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", init);
+    } else {
+      init();
+    }
+  </script>
+</body>
+</html>
